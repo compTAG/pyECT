@@ -7,27 +7,29 @@ device = torch.device("mps" if torch.backends.mps.is_available() else
 
 def vertex_indices(vertex_coords, directions, num_heights):
     """
-    Calculates the height values of each vertex and 
+    Calculates the height values of each vertex and converts them to an index in range(num_heights).
+    
+    Assumes that directions are unit vectors.
 
     Args:
-        labels (torch.Tensor): A 2D tensor of shape (n, m) with integer labels in [0, num_classes - 1].
-        num_classes (int): The total number of classes.
+        vertex_coords (torch.Tensor): A tensor of shape (k_0, n+1) with rows representing the coordinates of the vertices.
+        directions (torch.Tensor): A tensor of shape (d, n+1) with rows representing the sampled direction vectors.
+        num_heights (int): The number of height values to sample.
 
     Returns:
-        torch.Tensor (sparse COO): A sparse tensor of shape (n, m, num_classes).
+        torch.Tensor: A tensor of shape (k_0, d) with the height indices of each vertex in each direction.
     """
-
     # Compute the maximum possible height value
-    v_norms = torch.norm(vertex_coords, dim=1)
+    v_norms = torch.linalg.norm(vertex_coords, dim=1)
     max_height = v_norms.max()
 
-    # Compute dot products
+    # Compute dot products (heights in each direction)
     v_heights = torch.matmul(vertex_coords, directions.t())
 
-    # Scale and convert to indices
-    indices = torch.ceil(((num_heights - 1) * (max_height + v_heights)) / (2.0 * max_height))
+    # Scale and convert to indices in the range [0, num_heights - 1]
+    v_indices = torch.ceil(((num_heights - 1) * (max_height + v_heights)) / (2.0 * max_height)).to(torch.int64)
 
-    return indices
+    return v_indices
 
 def sparse_one_hot_2d(labels, num_classes):
     """
@@ -43,7 +45,6 @@ def sparse_one_hot_2d(labels, num_classes):
     # labels.shape is (n, m)
     n, m = labels.shape
 
-    # Build row and column indices for every element in the 2D labels tensor.
     # row_indices: [0, 0, ..., 1, 1, ..., 2, 2, ...]
     row_indices = torch.arange(n).unsqueeze(1).expand(n, m).reshape(-1)
 
@@ -54,9 +55,6 @@ def sparse_one_hot_2d(labels, num_classes):
     class_indices = labels.reshape(-1)  # shape [n*m]
 
     # Stack them into shape (3, n*m):
-    #   1st row -> row index
-    #   2nd row -> column index
-    #   3rd row -> class index
     indices = torch.stack([row_indices, col_indices, class_indices], dim=0)
 
     # Values are all 1's for a one-hot encoding
@@ -71,6 +69,17 @@ def sparse_one_hot_2d(labels, num_classes):
     return sparse_one_hot
 
 def vertex_sum(v_indices, v_weights, num_heights):
+    """
+    Calculates the contribution of the vertices to the WECT.
+
+    Args:
+        v_indices (torch.Tensor): A tensor of shape (k_0, d) with rows the height indices of each vertex in each direction.
+        v_weights (torch.Tensor): A tensor of shape (k_0) containing the vertex weights.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        v_sum (torch.Tensor): A tensor of shape (d, num_heights) representing the contribution of the vertices to the differentiated WECT.
+    """
 
     v_weights = v_weights.reshape(-1, 1, 1)
 
@@ -81,6 +90,19 @@ def vertex_sum(v_indices, v_weights, num_heights):
     return v_sum
 
 def simplex_sum(v_indices, simplices, num_heights):
+    """
+    Calculates the contribution of the i-simplices to the WECT.
+
+    Args:
+        v_indices (torch.Tensor): A tensor of shape (k_0, d) with rows the height indices of each vertex in each direction.
+        simplices (torch.Tensor, torch.Tensor): A tuple containing two tensors:
+            simplices[0]: A tensor of shape (k_i, i+1) with rows the vertices of each i-simplex.
+            simplices[1]: A tensor of shape (k_i) containing the weights of each i-simplex.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        simp_sum (torch.Tensor): A tensor of shape (d, num_heights) representing the contribution of the i-simplices to the differentiated WECT.
+    """
 
     simp_vertices, simp_weights = simplices
     simp_weights = simp_weights.reshape(-1, 1, 1)
@@ -94,6 +116,23 @@ def simplex_sum(v_indices, simplices, num_heights):
     return simp_sum
 
 def compute_differentiated_wect(vertices, higher_simplices, directions, num_heights):
+    """
+    Calculates a discretization of the differentiated WECT of a simplicial complex embedded in (n+1)-dimensional space.
+
+    Args:
+        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
+            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
+            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
+        higher_simplices: A tuple of tuples of tensors:
+            higher_simplices[i] (torch.Tensor, torch.Tensor):
+                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
+                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
+        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        d_wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the differentiated WECT.
+    """
 
     v_coords, v_weights = vertices
 
@@ -107,5 +146,23 @@ def compute_differentiated_wect(vertices, higher_simplices, directions, num_heig
     return d_wect
 
 def compute_wect(vertices, higher_simplices, directions, num_heights):
+    """
+    Calculates a discretization of the WECT of a simplicial complex embedded in (n+1)-dimensional space.
+
+    Args:
+        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
+            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
+            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
+        higher_simplices: A tuple of tuples of tensors:
+            higher_simplices[i] (torch.Tensor, torch.Tensor):
+                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
+                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
+        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the WECT.
+    """
+
     d_wect = compute_differentiated_wect(vertices, higher_simplices, directions, num_heights)
-    return torch.cumsum(d_wect, 1)
+    return torch.cumsum(d_wect, dim=1)
