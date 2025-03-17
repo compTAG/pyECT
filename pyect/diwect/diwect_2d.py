@@ -1,7 +1,7 @@
 import torch
-from utils import sgn_star, signed_angle, simplex_normals_2d, vertex_balls
+from .utils import sgn_star, signed_angle, simplex_normals_2d, vertex_balls
 
-def simplex_measures(v_coords, v_balls, simplices):
+def compute_simplex_measures(v_coords, v_balls, simplices):
 
     simp_verts, simp_weights = simplices
     simp_weights = simp_weights.unsqueeze(-1)
@@ -25,7 +25,7 @@ def simplex_measures(v_coords, v_balls, simplices):
 
     return torch.sum(weighted_simp_measures, dim=0)
 
-def diwect_2d(vertices, edges, triangles, num_heights):
+def compute_diwect_2d(vertices, edges, triangles, num_heights):
 
     v_coords, v_weights = vertices
     v_weights = v_weights.unsqueeze(1)
@@ -35,8 +35,8 @@ def diwect_2d(vertices, edges, triangles, num_heights):
 
     diwect = (
         torch.sum(2 * v_weights * v_radii, dim=0) + # contribution of the vertices
-        simplex_measures(v_coords, v_balls, edges) + # contribution of the edges 
-        simplex_measures(v_coords, v_balls, triangles) # contribution of the triangles
+        compute_simplex_measures(v_coords, v_balls, edges) + # contribution of the edges 
+        compute_simplex_measures(v_coords, v_balls, triangles) # contribution of the triangles
     )
 
     return diwect

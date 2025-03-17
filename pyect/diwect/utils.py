@@ -7,6 +7,8 @@ def nan_clamp(x, min_value, max_value):
     """
     Equivalent to torch.clamp(x, min_value, max_value) except when x is NaN in which case it returns max_value.
     """
+    min_value = x.new_tensor(min_value)
+    max_value = x.new_tensor(max_value)
     return torch.fmax(torch.fmin(x, max_value), min_value)
 
 def signed_angle(A, B):
@@ -66,6 +68,6 @@ def vertex_balls(v_coords, num_heights):
     heights = torch.linspace(-max_height, max_height, num_heights)
     normed_heights = heights / v_norms
 
-    v_radii = torch.acos(nan_clamp(-normed_heights, -1, 1))
+    v_radii = torch.acos(nan_clamp(-normed_heights, -1.0, 1.0))
 
     return v_centers, v_radii

@@ -1,9 +1,61 @@
 import torch
 
 # Automatically select the best available device
-device = torch.device("mps" if torch.backends.mps.is_available() else 
-                      "cuda" if torch.cuda.is_available() else 
+device = torch.device("cuda" if torch.cuda.is_available() else
                       "cpu")
+
+def compute_wect(vertices, higher_simplices, directions, num_heights):
+    """
+    Calculates a discretization of the WECT of a simplicial complex embedded in (n+1)-dimensional space.
+
+    Args:
+        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
+            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
+            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
+        higher_simplices: A tuple of tuples of tensors:
+            higher_simplices[i] (torch.Tensor, torch.Tensor):
+                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
+                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
+        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the WECT.
+    """
+
+    d_wect = compute_differentiated_wect(vertices, higher_simplices, directions, num_heights)
+    d_wect = d_wect.to_dense()
+    return torch.cumsum(d_wect, dim=1)
+
+def compute_differentiated_wect(vertices, higher_simplices, directions, num_heights):
+    """
+    Calculates a discretization of the differentiated WECT of a simplicial complex embedded in (n+1)-dimensional space.
+
+    Args:
+        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
+            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
+            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
+        higher_simplices: A tuple of tuples of tensors:
+            higher_simplices[i] (torch.Tensor, torch.Tensor):
+                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
+                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
+        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
+        num_heights (Int): The number of height values to sample.
+
+    Returns:
+        d_wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the differentiated WECT.
+    """
+
+    v_coords, v_weights = vertices
+
+    v_indices = vertex_indices(v_coords, directions, num_heights)
+    d_wect = vertex_sum(v_indices, v_weights, num_heights)
+
+    for i, simplices in enumerate(higher_simplices):
+        simp_sum = simplex_sum(v_indices, simplices, num_heights)
+        d_wect = d_wect + (-1)**(i+1)*simp_sum
+
+    return d_wect
 
 def vertex_indices(vertex_coords, directions, num_heights):
     """
@@ -115,54 +167,3 @@ def simplex_sum(v_indices, simplices, num_heights):
 
     return simp_sum
 
-def compute_differentiated_wect(vertices, higher_simplices, directions, num_heights):
-    """
-    Calculates a discretization of the differentiated WECT of a simplicial complex embedded in (n+1)-dimensional space.
-
-    Args:
-        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
-            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
-            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
-        higher_simplices: A tuple of tuples of tensors:
-            higher_simplices[i] (torch.Tensor, torch.Tensor):
-                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
-                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
-        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
-        num_heights (Int): The number of height values to sample.
-
-    Returns:
-        d_wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the differentiated WECT.
-    """
-
-    v_coords, v_weights = vertices
-
-    v_indices = vertex_indices(v_coords, directions, num_heights)
-    d_wect = vertex_sum(v_indices, v_weights, num_heights)
-
-    for i, simplices in enumerate(higher_simplices):
-        simp_sum = simplex_sum(v_indices, simplices, num_heights)
-        d_wect = d_wect + (-1)**(i+1)*simp_sum
-
-    return d_wect
-
-def compute_wect(vertices, higher_simplices, directions, num_heights):
-    """
-    Calculates a discretization of the WECT of a simplicial complex embedded in (n+1)-dimensional space.
-
-    Args:
-        vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
-            vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
-            vertices[1]: A tensor of shape (k_0) containing the vertex weights.
-        higher_simplices: A tuple of tuples of tensors:
-            higher_simplices[i] (torch.Tensor, torch.Tensor):
-                higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
-                higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
-        directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
-        num_heights (Int): The number of height values to sample.
-
-    Returns:
-        wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the WECT.
-    """
-
-    d_wect = compute_differentiated_wect(vertices, higher_simplices, directions, num_heights)
-    return torch.cumsum(d_wect, dim=1)
