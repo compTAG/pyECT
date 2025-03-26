@@ -62,7 +62,7 @@ def scatter_diff_wect(vertices, higher_simplices, directions, num_heights):
         simp_verts, simp_weights = simplices
         expanded_simp_weights = (-1)**(i+1) * simp_weights.unsqueeze(0).expand(d, -1)
 
-        simp_indices = v_indices[simp_verts]
+        simp_indices = v_indices[simp_verts.to(v_indices.device)]
         max_simp_indices = torch.amax(simp_indices, dim=1)
 
         diff_wect.scatter_add_(1, max_simp_indices.t(), expanded_simp_weights)
@@ -225,7 +225,7 @@ def simplex_sum(v_indices, simplices, num_heights):
     simp_vertices, simp_weights = simplices
     simp_weights = simp_weights.reshape(-1, 1, 1)
 
-    simp_indices = v_indices[simp_vertices]
+    simp_indices = v_indices[simp_vertices.to(v_indices.device)]
     max_simp_indices = torch.amax(simp_indices, dim=1)
     simp_graphs = sparse_one_hot_2d(max_simp_indices, num_heights)
     weighted_simp_graphs = simp_weights * simp_graphs

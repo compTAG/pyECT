@@ -59,7 +59,7 @@ def weighted_freudenthal(img_arr):
 
     # ----- Process Edges -----
     # For each edge (pair of vertex indices), get the vertex weights.
-    edge_vert_weights = flat_img[edges]  # shape: (num_edges, 2)
+    edge_vert_weights = flat_img[edges.to(flat_img.device)]  # shape: (num_edges, 2)
     # Compute the max and min weights along each edge.
     max_edge_weights = edge_vert_weights.amax(dim=1)
     min_edge_weights = edge_vert_weights.amin(dim=1)
@@ -124,7 +124,7 @@ def weighted_cubical(img_arr):
 
     # ----- Process Edges -----
     # For each edge, get the vertex weights.
-    edge_vert_weights = flat_img[edges]  # shape: (num_edges, 2)
+    edge_vert_weights = flat_img[edges.to(flat_img.device)]  # shape: (num_edges, 2)
     max_edge_weights = edge_vert_weights.amax(dim=1)
     min_edge_weights = edge_vert_weights.amin(dim=1)
     # Keep only edges with both vertex weights non-zero.
