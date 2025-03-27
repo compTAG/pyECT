@@ -91,9 +91,7 @@ class WECT(torch.nn.Module):
 
         for i in range(1, len(complex)):
             simp_verts, simp_weights = complex[i]
-            expanded_simp_weights = (-1) ** (i + 1) * simp_weights.unsqueeze(0).expand(
-                d, -1
-            )
+            expanded_simp_weights = (-1) ** i * simp_weights.unsqueeze(0).expand(d, -1)
 
             simp_indices = v_indices[simp_verts.to(v_indices.device)]
             max_simp_indices = torch.amax(simp_indices, dim=1)
