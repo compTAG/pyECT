@@ -1,0 +1,186 @@
+"""Tools for working with simplicial complexes.
+
+The Complex class is a collection of simplices, each of which is represented by a
+tensor of coordinates and a tensor of weights.
+"""
+
+from typing import Tuple, Optional
+
+import torch
+import numpy.typing as npt
+
+from .types import COORDS_DTYPE, INDICES_DTYPE, WEIGHTS_DTYPE
+
+
+class Complex:
+    """A simplicial complex of arbitrary dimension.
+
+    The representation is as a collection of simplices using tensors.
+    """
+
+    def __init__(
+        self,
+        *args: Tuple[torch.Tensor, torch.Tensor],
+        vertex_dtype: torch.dtype = COORDS_DTYPE,
+        index_dtype: torch.dtype = INDICES_DTYPE,
+        weights_dtype: torch.dtype = WEIGHTS_DTYPE,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        """Initializes a simplicial complex.
+
+        All tensors are cast to the given types.
+
+        Args:
+            *args: A variable number of tuples, each containing the simplices of a given
+                dimension. Each tuple should contain two tensors.
+                The first tensor contains the coordinates of the simplices
+                The second tensor contains the weights of the simplices.
+
+                The first tuple should contain the vertices of the complex, and
+                therefore must be a tensor of shape [num_vertices, d].
+
+                Any following tuples should contain indices into the vertices tensor,
+                and therefore must be a tensor of shape [num_simplices, k], where k+1 is the
+                dimension of the simplex.
+
+            vertex_dtype: The data type to use for the vertex coordinates.
+            index_dtype: The data type to use for the simplex indices.
+            weights_dtype: The data type to use for the simplex weights.
+            device: The device to use for the tensors.
+        """
+        # Verify the dimensions of the simplices, and raise a UserError if
+        # there is a mismatch.
+        self._validate_dimensions(*args)
+
+        # Call .to on each tensor to cast to the given type and device.
+        types = [vertex_dtype] + [index_dtype] * (len(args) - 1)
+        self.dimensions = tuple(
+            (
+                (
+                    coords.to(dtype=types[dim], device=device),
+                    weights.to(dtype=weights_dtype, device=device),
+                )
+            )
+            for dim, (coords, weights) in enumerate(args)
+        )
+
+    @staticmethod
+    def from_numpy(
+        *args: Tuple[npt.NDArray, npt.NDArray],
+        vertex_dtype: torch.dtype = torch.float32,
+        index_dtype: torch.dtype = torch.int32,
+        weights_dtype: torch.dtype = torch.float32,
+        device: Optional[torch.device] = None,
+    ) -> "Complex":
+        """Initializes a simplicial complex from numpy arrays.
+
+        Args:
+            *args: A variable number of tuples, each containing the simplices of a given
+                dimension. Each tuple should contain two numpy arrays.
+                The first array contains the coordinates of the simplices
+                The second array contains the weights of the simplices.
+
+                The first tuple should contain the vertices of the complex, and
+                therefore must be a tensor of shape [num_vertices, d].
+
+                Any following tuples should contain indices into the vertices tensor,
+                and therefore must be a tensor of shape [num_simplices, k], where k+1 is the
+                dimension of the simplex.
+
+            vertex_dtype: The data type to use for the vertex coordinates.
+            index_dtype: The data type to use for the simplex indices.
+            weights_dtype: The data type to use for the simplex weights.
+
+            device:
+                The device to use for the tensors.
+
+        """
+        if device is None:
+            device = (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu")
+            )
+
+        typematch = [vertex_dtype] + [index_dtype] * (len(args) - 1)
+        dimensions = tuple(
+            (
+                torch.as_tensor(coords, device=device, dtype=typematch[i]),
+                torch.as_tensor(weights, device=device, dtype=torch.float32),
+            )
+            for i, (coords, weights) in enumerate(args)
+        )
+        return Complex(*dimensions)
+
+    def to(self, device: torch.device) -> "Complex":
+        """Moves the complex to the given device."""
+        return Complex(*self.dimensions, device=device)
+
+    def __getitem__(self, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Returns the simplices of the given dimension."""
+        return self.dimensions[dim]
+
+    def get_coords(self, dim: int) -> torch.Tensor:
+        """Returns the coordinates of the simplices of the given dimension."""
+        return self.dimensions[dim][0]
+
+    def get_weights(self, dim: int) -> torch.Tensor:
+        """Returns the weights of the simplices of the given dimension."""
+        return self.dimensions[dim][1]
+
+    def top_dim(self) -> int:
+        """Returns the top dimension of the complex."""
+        return len(self) - 1
+
+    def __len__(self) -> int:
+        """Returns the number of dimensions in the complex."""
+        return len(self.dimensions)
+
+    def space_dim(self) -> int:
+        """Returns the dimension of the space the complex is embedded in."""
+        return self.dimensions[0][0].shape[1]
+
+    @staticmethod
+    def _validate_dimensions(*args: Tuple[torch.Tensor, torch.Tensor]) -> None:
+        for dim, simplex_list in enumerate(args):
+            if dim == 0:
+                if simplex_list[0].shape[0] != simplex_list[1].shape[0]:
+                    raise ValueError(
+                        "Dimension 0 simplex coordinates and weights must have the same number of vertices."
+                        + " Got {simplex_list[0].shape[0]} vertices and {simplex_list[1].shape[0]} weights."
+                    )
+
+                if simplex_list[0].dim() != 2:
+                    raise ValueError(
+                        "Dimension 0 simplex coordinates must be a 2d tensor."
+                        + f" Got {simplex_list[0].dim()} dimensions."
+                    )
+                if simplex_list[1].dim() != 1:
+                    raise ValueError(
+                        "Dimension 0 simplex weights must be a 1d tensor."
+                        + f" Got {simplex_list[1].dim()} dimensions."
+                    )
+
+            else:
+                if simplex_list[0].dim() != 2:
+                    raise ValueError(
+                        f"Dimension {dim} simplices must be a 2d tensor."
+                        + f" Got {simplex_list[0].dim()} dimensions."
+                    )
+                if simplex_list[1].dim() != 1:
+                    raise ValueError(
+                        f"Dimension {dim} weights must be a 1d tensor."
+                        + f" Got {simplex_list[1].dim()} dimensions."
+                    )
+
+                if simplex_list[0].shape[1] != dim + 1:
+                    raise ValueError(
+                        f"Dimension {dim} simplices must have {dim + 1} columns."
+                        + f" Got {simplex_list[0].shape[1]} columns."
+                    )
+
+                if simplex_list[0].shape[0] != simplex_list[1].shape[0]:
+                    raise ValueError(
+                        f"Dimension {dim} coordinates and weights must have the same number of simplices."
+                        + f" Got {simplex_list[0].shape[0]} simplices and {simplex_list[1].shape[0]} weights."
+                    )
