@@ -1,6 +1,7 @@
 import os
 import torch
 import timeit
+from typing import List, Generator
 from pyect import (
     image_to_grayscale_tensor,
     weighted_freudenthal,
@@ -17,7 +18,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 # Build the absolute path to the image file
 image_path = os.path.join(script_dir, "mona_lisa.jpg")
 
-mona_lisa = image_to_grayscale_tensor(image_path)
+mona_lisa = image_to_grayscale_tensor(image_path, device)
 
 complex = weighted_freudenthal(mona_lisa)
 
@@ -26,5 +27,33 @@ num_heights = 1000
 
 wect = WECT(directions, num_heights)
 
-print(wect.forward(complex))
+print(wect.forward(list(complex.dimensions)))
 
+
+def image_wect(
+    grayscaletensors: List[torch.Tensor], wect_module: WECT, device: torch.device
+) -> Generator[torch.Tensor, None, None]:
+    """Compute the WECT of a sequence of grayscale images.
+
+    Args:
+        grayscaletensors: A sequence of grayscale images.
+        wect_module (WECT): The WECT module to use for computation.
+
+    Yields:
+        torch.Tensor: The WECT of each grayscale image.
+    """
+    # if device == torch.device("cuda"): # PERF: At one point I added this, can't remember why so uncommenting for now
+    #     torch.set_float32_matmul_precision("high")
+
+    for gt in grayscaletensors:
+        image_tensor = torch.squeeze(gt.div(255.0))
+
+        complex = weighted_freudenthal(
+            image_tensor,
+            device=device,
+        )
+
+        simplices = complex.dimensions
+        im_wect = wect_module.forward(list(simplices))
+
+        yield im_wect

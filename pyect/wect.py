@@ -31,7 +31,7 @@ class WECT(torch.nn.Module):
         """
         super().__init__()
         self.dirs = torch.nn.Parameter(dirs, requires_grad=False)
-        height_tensor = torch.Tensor([num_heights], device=dirs.device)
+        height_tensor = torch.tensor([num_heights], device=dirs.device)
         self.num_heights = torch.nn.Parameter(height_tensor, requires_grad=False)
 
     def _vertex_indices(
