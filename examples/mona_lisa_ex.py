@@ -9,6 +9,8 @@ from pyect import (
     sample_directions_2d,
 )
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Get the directory where this script resides
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,11 +21,10 @@ mona_lisa = image_to_grayscale_tensor(image_path)
 
 complex = weighted_freudenthal(mona_lisa)
 
-directions = sample_directions_2d(5)
+directions = sample_directions_2d(5).to(device)
 num_heights = 1000
 
-wect = WECT(vertices, higher_simplices, directions, num_heights)
+wect = WECT(directions, num_heights)
 
-wect = compute_wect(vertices, higher_simplices, directions, num_heights)
-print(wect)
+print(wect.forward(complex))
 
