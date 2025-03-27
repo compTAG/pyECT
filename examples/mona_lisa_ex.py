@@ -30,7 +30,15 @@ for device in devices:
     directions = sample_directions_2d(5).to(device)
     num_heights = 1000
 
+    ########################################################
+    ## Run the WECT with different compilation strategies ##
+    ########################################################
+
+    ## Uncompiled
     wect = WECT(directions, num_heights).eval()
+    # burn in
+    for i in range(5):
+        wect.forward(list(complex.dimensions))
 
     start = timeit.default_timer()
     uncompiled_output = wect.forward(list(complex.dimensions))
@@ -38,7 +46,11 @@ for device in devices:
     print("Uncompiled output: ", uncompiled_output)
     print(f"Time on {device} uncompiled: {end - start}")
 
+    ## Scripted
     scripted_wect = torch.jit.script(wect)
+    # Burn in
+    for i in range(5):
+        scripted_wect.forward(list(complex.dimensions))
 
     start = timeit.default_timer()
     scripted_output = scripted_wect.forward(list(complex.dimensions))
@@ -46,17 +58,16 @@ for device in devices:
     print("Scripted output: ", scripted_output)
     print(f"Time on {device} scripted: {end - start}")
 
+    # ## Traced
     # traced_wect = torch.jit.trace(wect, (list(complex.dimensions),))
+    # # Burn in
+    # for i in range(5):
+    #     traced_wect.forward(list(complex.dimensions))
     #
     # start = timeit.default_timer()
     # traced_output = traced_wect.forward(list(complex.dimensions))
     # end = timeit.default_timer()
     # print(f"Time on {device} traced: {end - start}")
-    #
-    # compiled_wect = torch.compile(wect, backend="tensorrt")
-    # compiled_output = compiled_wect.forward(list(complex.dimensions))
-    # end = timeit.default_timer()
-    # print(f"Time on {device} compiled: {end - start}")
 
 
 def image_wect(
