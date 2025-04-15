@@ -25,6 +25,7 @@ class Complex:
         index_dtype: torch.dtype = INDICES_DTYPE,
         weights_dtype: torch.dtype = WEIGHTS_DTYPE,
         device: Optional[torch.device] = None,
+        n_type: str = "simplicial",
     ) -> None:
         """Initializes a simplicial complex.
 
@@ -47,10 +48,12 @@ class Complex:
             index_dtype: The data type to use for the simplex indices.
             weights_dtype: The data type to use for the simplex weights.
             device: The device to use for the tensors.
+            n_type: The type of the simplicial complex. Currently only "simplicial" and "cubical"
+                are supported.
         """
         # Verify the dimensions of the simplices, and raise a UserError if
         # there is a mismatch.
-        self._validate_dimensions(*args)
+        self._validate_dimensions(*args, n_type=n_type)
 
         # Call .to on each tensor to cast to the given type and device.
         types = [vertex_dtype] + [index_dtype] * (len(args) - 1)
@@ -63,6 +66,7 @@ class Complex:
             )
             for dim, (coords, weights) in enumerate(args)
         )
+        self.n_type = n_type
 
     @staticmethod
     def from_numpy(
@@ -71,6 +75,7 @@ class Complex:
         index_dtype: torch.dtype = torch.int32,
         weights_dtype: torch.dtype = torch.float32,
         device: Optional[torch.device] = None,
+        n_type: str = "simplicial",
     ) -> "Complex":
         """Initializes a simplicial complex from numpy arrays.
 
@@ -90,9 +95,10 @@ class Complex:
             vertex_dtype: The data type to use for the vertex coordinates.
             index_dtype: The data type to use for the simplex indices.
             weights_dtype: The data type to use for the simplex weights.
-
             device:
                 The device to use for the tensors.
+            n_type: The type of the simplicial complex. Currently only "simplicial" and "cubical"
+                are supported.
 
         """
         if device is None:
@@ -106,11 +112,11 @@ class Complex:
         dimensions = tuple(
             (
                 torch.as_tensor(coords, device=device, dtype=typematch[i]),
-                torch.as_tensor(weights, device=device, dtype=torch.float32),
+                torch.as_tensor(weights, device=device, dtype=weights_dtype),
             )
             for i, (coords, weights) in enumerate(args)
         )
-        return Complex(*dimensions)
+        return Complex(*dimensions, device=device, n_type=n_type)
 
     def to(self, device: torch.device) -> "Complex":
         """Moves the complex to the given device."""
@@ -141,46 +147,42 @@ class Complex:
         return self.dimensions[0][0].shape[1]
 
     @staticmethod
-    def _validate_dimensions(*args: Tuple[torch.Tensor, torch.Tensor]) -> None:
+    def _validate_dimensions(
+        *args: Tuple[torch.Tensor, torch.Tensor], n_type: str
+    ) -> None:
         for dim, simplex_list in enumerate(args):
-            if dim == 0:
-                if simplex_list[0].shape[0] != simplex_list[1].shape[0]:
-                    raise ValueError(
-                        "Dimension 0 simplex coordinates and weights must have the same number of vertices."
-                        + " Got {simplex_list[0].shape[0]} vertices and {simplex_list[1].shape[0]} weights."
-                    )
+            if simplex_list[0].dim() != 2:
+                raise ValueError(
+                    f"Dimension {dim} simplices must be a 2d tensor."
+                    + f" Got {simplex_list[0].dim()} dimensions."
+                )
+            if simplex_list[1].dim() != 1:
+                raise ValueError(
+                    f"Dimension {dim} weights must be a 1d tensor."
+                    + f" Got {simplex_list[1].dim()} dimensions."
+                )
+            if simplex_list[0].shape[0] != simplex_list[1].shape[0]:
+                raise ValueError(
+                    f"Dimension {dim} coordinates and weights must have the same number of simplices."
+                    + f" Got {simplex_list[0].shape[0]} simplices and {simplex_list[1].shape[0]} weights."
+                )
 
-                if simplex_list[0].dim() != 2:
-                    raise ValueError(
-                        "Dimension 0 simplex coordinates must be a 2d tensor."
-                        + f" Got {simplex_list[0].dim()} dimensions."
+            if dim > 0:  # simplices, k > 0
+                if n_type == "simplicial":
+                    if simplex_list[0].shape[1] != dim + 1:
+                        raise ValueError(
+                            f"Dimension {dim} simplices must have {dim + 1} columns."
+                            + f" Got {simplex_list[0].shape[1]} columns."
+                        )
+                elif n_type == "cubical":
+                    if simplex_list[0].shape[1] != 2 ^ dim:
+                        raise ValueError(
+                            f"Dimension {dim} simplices must have {2 ^ dim} columns."
+                            + f" Got {simplex_list[0].shape[1]} columns."
+                        )
+                else:  # warn that validation not implementod for n_type, but no error
+                    warning = (
+                        f"Validation not implemented for n_type {n_type}."
+                        + " Proceed with caution."
                     )
-                if simplex_list[1].dim() != 1:
-                    raise ValueError(
-                        "Dimension 0 simplex weights must be a 1d tensor."
-                        + f" Got {simplex_list[1].dim()} dimensions."
-                    )
-
-            else:
-                if simplex_list[0].dim() != 2:
-                    raise ValueError(
-                        f"Dimension {dim} simplices must be a 2d tensor."
-                        + f" Got {simplex_list[0].dim()} dimensions."
-                    )
-                if simplex_list[1].dim() != 1:
-                    raise ValueError(
-                        f"Dimension {dim} weights must be a 1d tensor."
-                        + f" Got {simplex_list[1].dim()} dimensions."
-                    )
-
-                if simplex_list[0].shape[1] != dim + 1:
-                    raise ValueError(
-                        f"Dimension {dim} simplices must have {dim + 1} columns."
-                        + f" Got {simplex_list[0].shape[1]} columns."
-                    )
-
-                if simplex_list[0].shape[0] != simplex_list[1].shape[0]:
-                    raise ValueError(
-                        f"Dimension {dim} coordinates and weights must have the same number of simplices."
-                        + f" Got {simplex_list[0].shape[0]} simplices and {simplex_list[1].shape[0]} weights."
-                    )
+                    print(warning)
