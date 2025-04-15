@@ -202,4 +202,4 @@ def weighted_cubical(
     square_weights = vertex_weights[square_vertices].amax(dim=1)
     squares = (square_vertices, square_weights)
 
-    return Complex(vertices, edges, squares)
+    return Complex(vertices, edges, squares, n_type="cubical")

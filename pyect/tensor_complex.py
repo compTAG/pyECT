@@ -175,9 +175,9 @@ class Complex:
                             + f" Got {simplex_list[0].shape[1]} columns."
                         )
                 elif n_type == "cubical":
-                    if simplex_list[0].shape[1] != 2 ^ dim:
+                    if simplex_list[0].shape[1] != 2 ** dim:
                         raise ValueError(
-                            f"Dimension {dim} simplices must have {2 ^ dim} columns."
+                            f"Dimension {dim} simplices must have {2 ** dim} columns."
                             + f" Got {simplex_list[0].shape[1]} columns."
                         )
                 else:  # warn that validation not implementod for n_type, but no error
