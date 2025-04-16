@@ -40,8 +40,6 @@ class WECT(torch.nn.Module):
     ) -> torch.Tensor:
         """Calculates the height values of each vertex and converts them to an index in range(num_heights).
 
-        Assumes that directions are unit vectors.
-
         Args:
             vertex_coords (torch.Tensor): A tensor of shape (k_0, n+1) with rows representing the coordinates of the vertices.
 
@@ -61,14 +59,14 @@ class WECT(torch.nn.Module):
         self,
         complex: List[Tuple[torch.Tensor, torch.Tensor]],
     ) -> torch.Tensor:
-        """Calculates a discretization of the differentiated WECT of a simplicial complex embedded in (n+1)-dimensional space.
+        """Calculates a discretization of the WECT of a complex embedded in n-dimensional space.
 
         Args:
-            complex: A weighted simplicial complex, represented as a list (simplex, weight) pairs of tensors.
-                The first element of the list is the vertex set, and the remaining elements are simplices of increasing dimension.
+            complex: A weighted simplicial or cubical complex, represented as a list (simplex, weight) of pairs of tensors.
+                The first element of the list contains the vertices and the remaining elements are simplices of increasing dimension.
 
         Returns:
-            wect (tf.Tensor): A 2d tensor of shape (self.directions.shape[0], self.num_heights)
+            wect (torch.Tensor): A 2d tensor of shape (self.directions.shape[0], self.num_heights)
                 containing the WECT.
         """
 

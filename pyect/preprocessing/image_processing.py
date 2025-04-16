@@ -44,12 +44,19 @@ def weighted_freudenthal(
     img_arr = img_arr.float().to(device)
     h, w = img_arr.shape
 
-    nonzero_vertices = torch.nonzero(img_arr, as_tuple=True)
+    # Create a mask of the nonzero pixels
+    img_mask = img_arr != 0 
+
+    # Indices of nonzero pixels (vertices)
+    nonzero_vertices = torch.nonzero(img_mask, as_tuple=True)
+
+    # Enumerate the nonzero vertices in the index array with all other values set to 0
     vertex_numbers = torch.zeros_like(img_arr, dtype=torch.int64, device=device)
     vertex_numbers[nonzero_vertices] = torch.arange(
         nonzero_vertices[0].size(0), dtype=torch.int64, device=device
     )
 
+    # Construct the vertex coords and weights
     vertex_coords = torch.stack([
         nonzero_vertices[1] - (w - 1) / 2.0,
         (h - 1) / 2.0 - nonzero_vertices[0]
@@ -57,23 +64,32 @@ def weighted_freudenthal(
     vertex_weights = img_arr[nonzero_vertices]
     vertices = (vertex_coords, vertex_weights)
 
-    horizontal_edge_mask = (img_arr[:, :-1] != 0) & (img_arr[:, 1:] != 0)
+    ### Horizontal Edges
+    # Remove the first and last columns of img_mask and check where the resulting arrays are both nonzero
+    horizontal_edge_mask = img_mask[:, :-1] & img_mask[:, 1:] 
     horizontal_edge_indices = torch.nonzero(horizontal_edge_mask, as_tuple=True)
+
+    # Get the vertex numbers of the endpoints of each horizontal edge
     horizontal_edge_vertices = torch.stack([
         vertex_numbers[horizontal_edge_indices],
         vertex_numbers[:, 1:][horizontal_edge_indices]
     ], dim=1)
     horizontal_edge_weights = vertex_weights[horizontal_edge_vertices].amax(dim=1)
 
-    vertical_edge_mask = (img_arr[:-1, :] != 0) & (img_arr[1:, :] != 0)
+    ### Vertical Edges
+    # Remove the first and last rows of img_mask and check where the resulting arrays are both nonzero
+    vertical_edge_mask = img_mask[:-1, :] & img_mask[1:, :]
     vertical_edge_indices = torch.nonzero(vertical_edge_mask, as_tuple=True)
+
+    # Get the vertex numbers of the endpoints of each vertical edge
     vertical_edge_vertices = torch.stack([
         vertex_numbers[vertical_edge_indices],
         vertex_numbers[1:, :][vertical_edge_indices]
     ], dim=1)
     vertical_edge_weights = vertex_weights[vertical_edge_vertices].amax(dim=1)
 
-    diagonal_edge_mask = (img_arr[:-1, :-1] != 0) & (img_arr[1:, 1:] != 0)
+    ### Diagonal Edges
+    diagonal_edge_mask = img_mask[:-1, :-1] & img_mask[1:, 1:]
     diagonal_edge_indices = torch.nonzero(diagonal_edge_mask, as_tuple=True)
     diagonal_edge_vertices = torch.stack([
         vertex_numbers[diagonal_edge_indices],
@@ -81,6 +97,7 @@ def weighted_freudenthal(
     ], dim=1)
     diagonal_edge_weights = vertex_weights[diagonal_edge_vertices].amax(dim=1)
 
+    # Concatenate the horizontal, vertical, and diagonal edges
     edge_vertices = torch.cat([
         horizontal_edge_vertices,
         vertical_edge_vertices,
@@ -93,7 +110,8 @@ def weighted_freudenthal(
     ], dim=0)
     edges = (edge_vertices, edge_weights)
 
-    upper_triangle_mask = (img_arr[:-1, :-1] != 0) & (img_arr[:-1, 1:] != 0) & (img_arr[1:, 1:] != 0)
+    ### Upper Triangles
+    upper_triangle_mask = img_mask[:-1, :-1] & img_mask[:-1, 1:] & img_mask[1:, 1:]
     upper_triangle_indices = torch.nonzero(upper_triangle_mask, as_tuple=True)
     upper_triangle_vertices = torch.stack([
         vertex_numbers[upper_triangle_indices],
@@ -102,7 +120,8 @@ def weighted_freudenthal(
     ], dim=1)
     upper_triangle_weights = vertex_weights[upper_triangle_vertices].amax(dim=1)
 
-    lower_triangle_mask = (img_arr[:-1, :-1] != 0) & (img_arr[1:, :-1] != 0) & (img_arr[1:, 1:] != 0)
+    ### Lower Triangles
+    lower_triangle_mask = img_mask[:-1, :-1] & img_mask[1:, :-1] & img_mask[1:, 1:]
     lower_triangle_indices = torch.nonzero(lower_triangle_mask, as_tuple=True)
     lower_triangle_vertices = torch.stack([
         vertex_numbers[lower_triangle_indices],
@@ -111,6 +130,7 @@ def weighted_freudenthal(
     ], dim=1)
     lower_triangle_weights = vertex_weights[lower_triangle_vertices].amax(dim=1)
 
+    ### Concatenate the upper and lower triangles
     triangle_vertices = torch.cat([
         upper_triangle_vertices,
         lower_triangle_vertices
@@ -152,12 +172,19 @@ def weighted_cubical(
     img_arr = img_arr.float().to(device)
     h, w = img_arr.shape
 
-    nonzero_vertices = torch.nonzero(img_arr, as_tuple=True)
+    # Create a mask of the nonzero pixels
+    img_mask = img_arr != 0
+
+    # Indices of nonzero pixels (vertices)
+    nonzero_vertices = torch.nonzero(img_mask, as_tuple=True)
+
+    # Create an array enumerating the nonzero vertices with all other values 0
     vertex_numbers = torch.zeros_like(img_arr, dtype=torch.int64, device=device)
     vertex_numbers[nonzero_vertices] = torch.arange(
         nonzero_vertices[0].size(0), dtype=torch.int64, device=device
     )
 
+    # Construct the vertex coords and weights
     vertex_coords = torch.stack([
         nonzero_vertices[1] - (w - 1) / 2.0,
         (h - 1) / 2.0 - nonzero_vertices[0]
@@ -165,22 +192,31 @@ def weighted_cubical(
     vertex_weights = img_arr[nonzero_vertices]
     vertices = (vertex_coords, vertex_weights)
 
-    horizontal_edge_mask = (img_arr[:, :-1] != 0) & (img_arr[:, 1:] != 0)
+    ### Horizontal Edges
+    # Remove the first and last columns of img_mask and check where the resulting arrays are both nonzero
+    horizontal_edge_mask = img_mask[:, :-1] & img_mask[:, 1:]
     horizontal_edge_indices = torch.nonzero(horizontal_edge_mask, as_tuple=True)
+
+    # Get the vertex numbers of the endpoints of each horizontal edge
     horizontal_edge_vertices = torch.stack([
         vertex_numbers[horizontal_edge_indices],
         vertex_numbers[:, 1:][horizontal_edge_indices]
     ], dim=1)
     horizontal_edge_weights = vertex_weights[horizontal_edge_vertices].amax(dim=1)
 
-    vertical_edge_mask = (img_arr[:-1, :] != 0) & (img_arr[1:, :] != 0)
+    ### Vertical Edges
+    # Remove the first and last rows of img_mask and check where the resulting arrays are both nonzero
+    vertical_edge_mask = img_mask[:-1, :] & img_mask[1:, :]
     vertical_edge_indices = torch.nonzero(vertical_edge_mask, as_tuple=True)
+
+    # Get the vertex numbers of the endpoints of each vertical edge
     vertical_edge_vertices = torch.stack([
         vertex_numbers[vertical_edge_indices],
         vertex_numbers[1:, :][vertical_edge_indices]
     ], dim=1)
     vertical_edge_weights = vertex_weights[vertical_edge_vertices].amax(dim=1)
 
+    # Concatenate the horizontal and vertical edges
     edge_vertices = torch.cat([
         horizontal_edge_vertices,
         vertical_edge_vertices
@@ -191,7 +227,8 @@ def weighted_cubical(
     ], dim=0)
     edges = (edge_vertices, edge_weights)
 
-    square_mask = (horizontal_edge_mask[:-1, :] != 0) & (horizontal_edge_mask[1:, :] != 0)
+    ###Squares
+    square_mask = horizontal_edge_mask[:-1, :] & horizontal_edge_mask[1:, :]
     square_indices = torch.nonzero(square_mask, as_tuple=True)
     square_vertices = torch.stack([
         vertex_numbers[square_indices],
