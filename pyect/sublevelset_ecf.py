@@ -84,7 +84,7 @@ def cell_values_3D(arr):
 
     x_square_values = torch.maximum(y_edge_values[..., 1:], y_edge_values[..., :-1])
     y_square_values = torch.maximum(z_edge_values[1:, ...], z_edge_values[:-1, ...])
-    z_square_values = torch.maximum(x_edge_values[:, 1:, :], y_edge_values[:, :-1, :])
+    z_square_values = torch.maximum(x_edge_values[:, 1:, :], x_edge_values[:, :-1, :])
     square_values = torch.cat([
         x_square_values.reshape(-1),
         y_square_values.reshape(-1),
