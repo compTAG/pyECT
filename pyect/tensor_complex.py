@@ -9,7 +9,7 @@ from typing import Tuple, Optional
 import torch
 import numpy.typing as npt
 
-from .types import COORDS_DTYPE, INDICES_DTYPE, WEIGHTS_DTYPE
+from .dtypes import COORDS_DTYPE, INDICES_DTYPE, WEIGHTS_DTYPE
 
 
 class Complex:
