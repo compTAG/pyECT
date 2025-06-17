@@ -29,7 +29,8 @@ def center_complex(simplicial_complex: Complex) -> Complex:
     
     centered_coords = coords - center
 
-    return Complex((centered_coords, coord_weights), (edges, edge_weights))
+    return Complex(tuple([centered_coords, coord_weights]), tuple([edges, edge_weights]))
+
 
 def main():
 
