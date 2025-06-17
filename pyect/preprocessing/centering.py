@@ -29,8 +29,7 @@ def center_complex(simplicial_complex: Complex) -> Complex:
     
     centered_coords = coords - center
 
-    return type(Complex)((centered_coords, coord_weights), (edges, edge_weights))
-
+    return Complex((centered_coords, coord_weights), (edges, edge_weights))
 
 def main():
 
@@ -46,7 +45,7 @@ def main():
     directions = torch.tensor([[1.0,0.0], [0.0,1.0], [-1.0,0.0], [0.0,-1.0]])
     num_heights = [4.0]
 
-    new_complex = center(complex)
+    new_complex = center_complex(complex)
 
 
 '''
