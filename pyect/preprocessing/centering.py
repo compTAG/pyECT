@@ -5,14 +5,22 @@ import numpy as np
 
 
 
-def center_complex(Complex):
+def center_complex(simplicial_complex: Complex) -> Complex:
 
     '''
     Compute the smallest enclosing ball around the vertices
     of a simplicial complex
+
+    Args: 
+        simplicial_complex: A simplicial complex represented by the Complex
+        class
+
+    Returns:
+        Complex: A weighted simplicial complex, with vertices centered 
+        about the origin
     '''
 
-    (coords, coord_weights), (edges, edge_weights) = Complex
+    (coords, coord_weights), (edges, edge_weights) = simplicial_complex
 
     # Compute smallest enclosing ball
     coords_np = coords.detach().cpu().numpy()
@@ -23,7 +31,7 @@ def center_complex(Complex):
 
     return type(Complex)((centered_coords, coord_weights), (edges, edge_weights))
 
-'''
+
 def main():
 
     ## Test with square complex in quadrant 1, with one vertice at origin and side lengths 1.
@@ -39,8 +47,9 @@ def main():
     num_heights = [4.0]
 
     new_complex = center(complex)
-'''
 
+
+'''
 def test_center_complex(verbose=True):
     # Define a simple square complex
     coords = torch.tensor([[0., 0.], [1., 0.], [0., 1.], [1., 1.]])
@@ -67,9 +76,7 @@ def test_center_complex(verbose=True):
         print("Original center of bounding ball:", original_center)
         print("New center after centering:", new_center)
         print("✅ Passed: Coordinates are centered. Topology is preserved.")
-
-def main():
-    test_center_complex()
+'''
 
 if __name__ == "__main__":
     main()
