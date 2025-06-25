@@ -4,29 +4,12 @@ from pyect import Complex
 import numpy as np
 
 
-
 def center_complex(simplicial_complex: Complex) -> Complex:
 
-    '''
-    Compute the smallest enclosing ball around the vertices
-    of a simplicial complex
-
-    Args: 
-        simplicial_complex: A simplicial complex represented by the Complex
-        class
-
-    Returns:
-        Complex: A weighted simplicial complex, with vertices centered 
-        about the origin
-    '''
-
     (coords, coord_weights), (edges, edge_weights) = simplicial_complex
-
-    # Compute smallest enclosing ball
-    coords_np = coords.detach().cpu().numpy()
-    center, _ = miniball.get_bounding_ball(coords_np)
-    center = torch.tensor(center, dtype=coords.dtype, device=coords.device)
     
+    center = coords.mean(dim=0)
+
     centered_coords = coords - center
 
     return Complex(tuple([centered_coords, coord_weights]), tuple([edges, edge_weights]))
