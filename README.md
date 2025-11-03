@@ -17,7 +17,7 @@ TODO: Add Citation
 To install `pyECT`, use pip:
 
 ```bash
-pip install pyECT
+pip install pyect 
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ pip install pyECT
 Here's a simple example of how to use `pyECT`:
 
 ```python
-from pyECT import WECT
+from pyect import WECT
 
 # Example data and weight function
 data = [...]  # Replace with your data
