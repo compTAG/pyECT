@@ -1,8 +1,7 @@
+"""For computing the WECT of a weighted geometric simplicial/cubical complex embedded in R^n."""
+
 import torch
 from typing import List, Tuple
-
-# Automatically select the best available device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class WECT(torch.nn.Module):
@@ -13,7 +12,7 @@ class WECT(torch.nn.Module):
     do not require these parameters to be passed in, and allow streamlined loading/saving of the module for consistent
     computation.
 
-    This module can also be converted to TorchScrpt using torch.jit.script for use
+    This module can also be converted to TorchScript using torch.jit.script for use
     outside of Python.
     """
 
@@ -21,18 +20,18 @@ class WECT(torch.nn.Module):
         """Initializes the WECT module.
 
         The initialized module is designed to compute the WECT of a simplicial complex
-        embedded in R^[dirs.shape[1]], using dirs.shape[0] directiions for sampling.
+        embedded in R^[dirs.shape[1]], using dirs.shape[0] directions for sampling.
         The discretization of the WECT is parameterized by num_heights distinct height values.
 
         Args:
-            dirs: An (n x d) tensor of directions to use for sampling.
+            dirs: An (d x n) tensor of directions to use for sampling.
             num_heights: A constant tensor, with the number of distinct height
                 values to round to as an integer
         """
         super().__init__()
-        self.dirs = torch.nn.Parameter(dirs, requires_grad=False)
-        height_tensor = torch.tensor([num_heights], device=dirs.device)
-        self.num_heights = torch.nn.Parameter(height_tensor, requires_grad=False)
+        dirs = torch.nn.functional.normalize(dirs, p=2, dim=1, eps=1e-12)
+        self.register_buffer("dirs", dirs)
+        self.num_heights: int = int(num_heights)
 
     def _vertex_indices(
         self,
@@ -41,78 +40,91 @@ class WECT(torch.nn.Module):
         """Calculates the height values of each vertex and converts them to an index in range(num_heights).
 
         Args:
-            vertex_coords (torch.Tensor): A tensor of shape (k_0, n+1) with rows representing the coordinates of the vertices.
+            vertex_coords (torch.Tensor): A tensor of shape (k_0, n) with rows representing the coordinates of the vertices.
 
         Returns:
             torch.Tensor: A tensor of shape (k_0, d) with the height indices of each vertex in each direction.
         """
-        v_norms = torch.norm(vertex_coords, dim=1)
-        max_height = v_norms.max()
 
+        v_norms = torch.norm(vertex_coords, dim=1)
+        max_height = torch.amax(v_norms)
         v_heights = torch.matmul(vertex_coords, self.dirs.T)
+
+        # The case where all vertices are at the origin
+        if max_height.item() == 0.0:
+            return torch.zeros((v_heights.size(0), self.dirs.size(0)), dtype=torch.long, device=self.dirs.device)
+
         v_indices = torch.ceil(
             (self.num_heights - 1) * (max_height + v_heights) / (2.0 * max_height)
-        ).long()
+        ).clamp(0, self.num_heights - 1).long()
+
         return v_indices
 
     def forward(
         self,
-        complex: List[Tuple[torch.Tensor, torch.Tensor]],
+        complex_data: List[Tuple[torch.Tensor, torch.Tensor]],
     ) -> torch.Tensor:
         """Calculates a discretization of the WECT of a complex embedded in n-dimensional space.
 
         Args:
-            complex: A weighted simplicial or cubical complex, represented as a list (simplex, weight) of pairs of tensors.
-                The first element of the list contains the vertices and the remaining elements are simplices of increasing dimension.
+            complex_data: A weighted simplicial or cubical complex, represented as a list of pairs of tensors.
+                complex_data[0] = (v_coords, v_weights):
+                    v_coords (torch.Tensor): A tensor of shape (k_0, n) where k_0 is the number of vertices.
+                    Rows are the coordinates of the vertices.
+
+                    v_weights (torch.Tensor): A tensor of shape (k_0). Values are the weights of the vertices.
+
+                for i > 0:
+                    complex_data[i] = (simp_verts, simp_weights):
+                        simp_verts (torch.Tensor): A tensor of shape (k_i, i+1) where k_i is the number of i-simplices.
+                        Rows are the vertex sets of the i-simplices.
+
+                        simp_weights (torch.Tensor): A tensor of shape (k_i). Values are the weights of the i-simplices.
 
         Returns:
-            wect (torch.Tensor): A 2d tensor of shape (self.directions.shape[0], self.num_heights)
+            wect (torch.Tensor): A 2d tensor of shape (self.dirs.shape[0], self.num_heights)
                 containing the WECT.
         """
 
         d = self.dirs.size(dim=0)
-        h = int(self.num_heights)
+        h = self.num_heights
 
-        v_coords, v_weights = complex[0]
+        if h <= 0:
+            raise ValueError("num_heights must be positive.")
+        
+        device = self.dirs.device
+        v_coords  = complex_data[0][0].to(device=device, dtype=torch.float32)
+        v_weights = complex_data[0][1].to(device=device, dtype=torch.float32)
+
+        # Check for empty inputs
+        if v_coords.size(0) == 0:
+            return torch.zeros((d, h), dtype=torch.float32, device=device)
+
         expanded_v_weights = v_weights.unsqueeze(0).expand(
             d, -1
         )  # Expand to shape (d, k_0)
 
         # Initialize the differentiated WECT
-        diff_wect = torch.zeros((d, h), dtype=v_weights.dtype, device=v_weights.device)
+        diff_wect = torch.zeros((d, h), dtype=torch.float32, device=device)
 
         # Compute the height index of each vertex
         v_indices = self._vertex_indices(v_coords)
 
         # Add the contribution of the vertices to the differentiated WECT
-        diff_wect.scatter_add_(1, v_indices.t(), expanded_v_weights)
+        diff_wect.scatter_add_(1, v_indices.T, expanded_v_weights)
 
-        for i in range(1, len(complex)):
-            simp_verts, simp_weights = complex[i]
+        for i in range(1, len(complex_data)):
+            simp_verts = complex_data[i][0].to(device=device, dtype=torch.long)
+            simp_weights = complex_data[i][1].to(device=device, dtype=torch.float32)
+
+            # Expand to shape (d, k_i)
             expanded_simp_weights = (-1) ** i * simp_weights.unsqueeze(0).expand(d, -1)
 
-            simp_indices = v_indices[simp_verts.to(v_indices.device)]
+            # Compute the maximum index for each simplex's vertices
+            simp_indices = v_indices[simp_verts]
             max_simp_indices = torch.amax(simp_indices, dim=1)
 
-            diff_wect.scatter_add_(1, max_simp_indices.t(), expanded_simp_weights)
+            # Add the contribution of the i-simplices to the differentiated WECT
+            diff_wect.scatter_add_(1, max_simp_indices.T, expanded_simp_weights)
 
         return torch.cumsum(diff_wect, dim=1)
-
-
-"""
-TODO: rewrite the forward function arguments
-
-Args:
-    vertices (torch.Tensor, torch.Tensor): A tuple of tensors:
-        vertices[0]: A tensor of shape (k_0, n+1) with rows the coordinates of the vertices.
-        vertices[1]: A tensor of shape (k_0) containing the vertex weights.
-    higher_simplices: A tuple of tuples of tensors:
-        higher_simplices[i] (torch.Tensor, torch.Tensor):
-            higher_simplices[i,0]: A tensor of shape (k_{i+1}, i+2) containing the vertices of the (i+1)-simplices.
-            higher_simplices[i,1]: A tensor of shape (k_{i+1}) containing the weights of the (i+1)-simplices.
-    directions (torch.Tensor): A tensor of shape (d, n+1) with rows the sampled direction vectors.
-    num_heights (Int): The number of height values to sample.
-
-Returns:
-    diff_wect (torch.Tensor): A tensor of shape (d, num_heights) containing a discretization of the differentiated WECT.
-"""

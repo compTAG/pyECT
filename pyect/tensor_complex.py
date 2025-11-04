@@ -15,7 +15,7 @@ from .dtypes import COORDS_DTYPE, INDICES_DTYPE, WEIGHTS_DTYPE
 class Complex:
     """A simplicial complex of arbitrary dimension.
 
-    The representation is as a collection of simplices using tensors.
+    The representation is as a collection of simplices (or cubical cells) using tensors.
     """
 
     def __init__(
@@ -27,7 +27,7 @@ class Complex:
         device: Optional[torch.device] = None,
         n_type: str = "simplicial",
     ) -> None:
-        """Initializes a simplicial complex.
+        """Initializes a complex.
 
         All tensors are cast to the given types.
 
@@ -48,7 +48,7 @@ class Complex:
             index_dtype: The data type to use for the simplex indices.
             weights_dtype: The data type to use for the simplex weights.
             device: The device to use for the tensors.
-            n_type: The type of the simplicial complex. Currently only "simplicial" and "cubical"
+            n_type: The type of complex. Currently only "simplicial" and "cubical"
                 are supported.
         """
         # Verify the dimensions of the simplices, and raise a UserError if
@@ -120,7 +120,7 @@ class Complex:
 
     def to(self, device: torch.device) -> "Complex":
         """Moves the complex to the given device."""
-        return Complex(*self.dimensions, device=device)
+        return Complex(*self.dimensions, device=device, n_type=self.n_type)
 
     def __getitem__(self, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Returns the simplices of the given dimension."""
@@ -145,6 +145,25 @@ class Complex:
     def space_dim(self) -> int:
         """Returns the dimension of the space the complex is embedded in."""
         return self.dimensions[0][0].shape[1]
+    
+    def center_(self) -> "Complex":
+        """
+        Re-center the complex in-place so that the average vertex coordinate is at the origin.
+        """
+        if len(self.dimensions) == 0:
+            return self
+
+        v_coords, v_weights = self.dimensions[0]
+        if v_coords.numel() == 0:
+            return self
+
+        center = v_coords.mean(dim=0)
+        new_v_coords = (v_coords - center).contiguous()
+
+        dims: list[Tuple[torch.Tensor, torch.Tensor]] = list(self.dimensions)
+        dims[0] = (new_v_coords, v_weights)
+        self.dimensions = tuple(dims)
+        return self
 
     @staticmethod
     def _validate_dimensions(
