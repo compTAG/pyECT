@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyect',
-    version='0.1.0',
+    version='0.1.3',
     author='Alex McCleary, Eli Quist, Jack Ruder, Jacob Sriraman',
     author_email='eli.quist@student.montana.edu',
     description='Generalized computation of the WECT using PyTorch.',
@@ -14,6 +14,8 @@ setup(
     install_requires=[
         'torch',
         'Pillow',
+        'numpy',
+        'torchvision'
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
