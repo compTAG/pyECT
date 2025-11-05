@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 import torch
 import torchvision.transforms as transforms
 from pyect import Complex
@@ -12,7 +12,7 @@ def image_to_grayscale_tensor(image_path: str, device: torch.device) -> torch.Te
     grayscale_image = image.convert("L")
     # Convert the grayscale image to a tensor with values in [0,1]
     tensor = transforms.ToTensor()(grayscale_image).squeeze(dim=0)
-    # The resulting tensor will have shape (1, H, W)
+    # The resulting tensor will have shape (H, W)
     return tensor.to(device)
 
 
@@ -239,4 +239,4 @@ def weighted_cubical(
     square_weights = vertex_weights[square_vertices].amax(dim=1)
     squares = (square_vertices, square_weights)
 
-    return Complex(vertices, edges, squares, n_type="cubical")
+    return Complex(vertices, edges, squares, n_type="cubical", device=device)

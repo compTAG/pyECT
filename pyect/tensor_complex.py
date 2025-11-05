@@ -7,6 +7,7 @@ tensor of coordinates and a tensor of weights.
 from typing import Tuple, Optional
 
 import torch
+import warnings
 import numpy.typing as npt
 
 from .dtypes import COORDS_DTYPE, INDICES_DTYPE, WEIGHTS_DTYPE
@@ -71,9 +72,9 @@ class Complex:
     @staticmethod
     def from_numpy(
         *args: Tuple[npt.NDArray, npt.NDArray],
-        vertex_dtype: torch.dtype = torch.float32,
-        index_dtype: torch.dtype = torch.int32,
-        weights_dtype: torch.dtype = torch.float32,
+        vertex_dtype: torch.dtype = COORDS_DTYPE,
+        index_dtype: torch.dtype = INDICES_DTYPE,
+        weights_dtype: torch.dtype = WEIGHTS_DTYPE,
         device: Optional[torch.device] = None,
         n_type: str = "simplicial",
     ) -> "Complex":
@@ -200,8 +201,4 @@ class Complex:
                             + f" Got {simplex_list[0].shape[1]} columns."
                         )
                 else:  # warn that validation not implementod for n_type, but no error
-                    warning = (
-                        f"Validation not implemented for n_type {n_type}."
-                        + " Proceed with caution."
-                    )
-                    print(warning)
+                    warnings.warn(f"Validation not implemented for n_type {n_type}. Proceed with caution.")
