@@ -5,11 +5,18 @@ used to analyze and summarize geometric and topological features of data.
 This package provides an efficient and simple implementation of the WECT using
 PyTorch.
 
-This codebase accompanies the following paper (and should be cited if you use
-this package):
-
+This codebase accompanies [this preprint](https://arxiv.org/abs/2511.03909).
+If you use this package, please include the following citation in your work:
 ```
-TODO: Add Citation
+@misc{cisewskikehe2025vectorizedcomputationeulercharacteristic,
+      title={Vectorized Computation of Euler Characteristic Functions and Transforms}, 
+      author={Jessi Cisewski-Kehe and Brittany Terese Fasy and Alexander McCleary and Eli Quist and Jack Ruder},
+      year={2025},
+      eprint={2511.03909},
+      archivePrefix={arXiv},
+      primaryClass={cs.CG},
+      url={https://arxiv.org/abs/2511.03909}, 
+}
 ```
 
 ## Installation
