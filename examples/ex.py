@@ -22,31 +22,32 @@ def main():
     # To apply this to an image file, use the function image_to_grayscale_tensor.
     # The resulting tensor can then be used in place of img_arr.
 
-    img_arr = torch.rand((500,500), device=device)
+    img_size = (500, 500)
+    img_arr = torch.rand(img_size, device=device)
 
-    # From here we can then take the image ECF.
-    # We first initialize the Image_ECF_2D module.
-    # Here we're choosing to sample the ECF over 6 bins.
+    # Next, we'll choose the parameters for the image ECF and WECT.
 
-    ecf = Image_ECF_2D(6).eval()
+    num_bins = 100          # The number of bins to discretize (W)ECFs over.
+    num_directions = 25     # The number of directions to sample the WECT over.
+    directions = sample_directions_2d(num_directions, device=device)
 
-    # Next, we compute the image ECF of img_arr.
+    ### Image ECF ###
+
+    # Now we initialize the Image_ECF_2D module.
+
+    ecf = Image_ECF_2D(num_bins).eval()
+
+    # Then, we compute the image ECF of img_arr.
 
     ecf_result = ecf(img_arr)
     print(f"ECF: {ecf_result}")
 
-
+    ### WECT ###
 
     # We can also compute the WECT of img_arr.
-    # To do so, we first sample direction vectors.
-    # We'll pick 5 directions for this example.
+    # We first initialize the WECT module.
 
-    directions = sample_directions_2d(5, device=device)
-
-    # Next, we initialize the WECT module with the direction vectors we just sampled.
-    # We're choosing to sample 6 height values here.
-
-    wect = WECT(directions, 6).eval()
+    wect = WECT(directions, num_bins).eval()
 
     # Now we compute the weighted Freudenthal complex of img_arr.
 
