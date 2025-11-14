@@ -31,7 +31,10 @@ class WECT(torch.nn.Module):
         super().__init__()
         dirs = torch.nn.functional.normalize(dirs, p=2, dim=1, eps=1e-12)
         self.register_buffer("dirs", dirs)
-        self.num_heights: int = int(num_heights)
+        num_heights = int(num_heights)
+        if num_heights <= 0:
+            raise ValueError("num_heights must be positive.")
+        self.num_heights: int = num_heights
 
     def _vertex_indices(
         self,
@@ -46,13 +49,11 @@ class WECT(torch.nn.Module):
             torch.Tensor: A tensor of shape (k_0, d) with the height indices of each vertex in each direction.
         """
 
-        v_norms = torch.norm(vertex_coords, dim=1)
-        max_height = torch.amax(v_norms)
-        v_heights = torch.matmul(vertex_coords, self.dirs.T)
+        eps = 1e-12 # only used in the case where all vertices are at the origin
 
-        # The case where all vertices are at the origin
-        if max_height.item() == 0.0:
-            return torch.zeros((v_heights.size(0), self.dirs.size(0)), dtype=torch.long, device=self.dirs.device)
+        v_norms = torch.norm(vertex_coords, dim=1)
+        max_height = torch.amax(v_norms).clamp(min=eps)
+        v_heights = vertex_coords @ self.dirs.T
 
         v_indices = torch.ceil(
             (self.num_heights - 1) * (max_height + v_heights) / (2.0 * max_height)
@@ -89,9 +90,6 @@ class WECT(torch.nn.Module):
         d = self.dirs.size(dim=0)
         h = self.num_heights
 
-        if h <= 0:
-            raise ValueError("num_heights must be positive.")
-        
         device = self.dirs.device
         v_coords  = complex_data[0][0].to(device=device, dtype=torch.float32)
         v_weights = complex_data[0][1].to(device=device, dtype=torch.float32)
