@@ -1,3 +1,36 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=71", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyect"
+version = "0.1.6"
+description = "Generalized computation of the weighted Euler characteristic transform using PyTorch."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+  {name = "Alex McCleary"},
+  {name = "Eli Quist", email="eli.quist@student.montana.edu"},
+  {name = "Jack Ruder"},
+  {name = "Jacob Sriraman"},
+]
+
+dependencies = [
+    "torch",
+    "Pillow",
+    "numpy",
+    "torchvision",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
