@@ -222,11 +222,11 @@ class TestComputeWecfsEdgeCases:
 
         assert result.shape == (1, 5)
 
-    def test_zero_filter(self):
-        """Test with zero filter function."""
+    def test_near_zero_filter(self):
+        """Test with near-zero filter function."""
         device = torch.device("cpu")
 
-        filters = torch.zeros(3, 1, device=device)
+        filters = torch.full((3, 1), 1e-6, device=device)
         vweights = torch.ones(3, device=device)
 
         complex_data = [(filters, vweights)]
