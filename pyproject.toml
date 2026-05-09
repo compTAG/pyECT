@@ -24,14 +24,14 @@ dependencies = [
     "trimesh"
 ]
 
-[project.optional-dependencies]
-gudhi = ["gudhi"]
-
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+gudhi = ["gudhi"]
 
 [tool.setuptools]
 include-package-data = true
