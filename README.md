@@ -27,6 +27,18 @@ To install `pyECT`, use pip:
 pip install pyect 
 ```
 
+Gudhi alpha-complex support is optional:
+
+```bash
+pip install pyect[gudhi]
+```
+
+The Gudhi integration lives at `pyect.integrations.gudhi` so Gudhi is not
+imported by the core package. In `alpha_complex_to_filtration_data`,
+`point_weights` are passed to Gudhi to construct the alpha filtration. The
+pyECT simplex weights are `1.0` by default; pass `simplex_weight_fn` to use a
+custom weighting rule, such as the max of the simplex vertex weights.
+
 ## Usage
 
 Here's a simple example of how to use `pyECT`:

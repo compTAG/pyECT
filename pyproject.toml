@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyect"
-version = "0.1.8"
+version = "1.0.0"
 description = "Generalized computation of the weighted Euler characteristic transform using PyTorch."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -29,6 +29,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+gudhi = ["gudhi"]
 
 [tool.setuptools]
 include-package-data = true
